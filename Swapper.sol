@@ -32,9 +32,9 @@ contract Swapper is Ownable {
         return true;
     }
 
-    // it can be managed in UI to save the gas fees.
-    function setAddress(address _collection) external {
-        nft = ERC721(_collection);
+    function setAddress(address _collection1,address _collection2) external {
+        nft1 = ERC721(_collection1);
+        nft2 = ERC721(_collection2);
     }
 
     //add bothaAgree records in addressCollector.
