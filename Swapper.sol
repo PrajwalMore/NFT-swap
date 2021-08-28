@@ -86,20 +86,29 @@ contract Swapper is Ownable {
 
     event evt(address ownerAddr);
 
-    function addAgreement(
+function addAgreement(
         uint256 _tokenId,
         address _collection,
         uint256 _expectedPrice,
         address _to
-    ) public {
-        
+    ) payable public returns(bool success){
+        //check for caller should be someone from user1 or user2.
 
+        // check if tokenId is token from that collection collection
+        // string memory nm=nft.name();
+        // require(keccak256(abi.encodePacked(nm))== keccak256(abi.encodePacked(addressCollector[_collection])), "ERR_COLLECTION_IS_DIFFERENT");
+        //require(condition, "Collection not present");
         // if caller is owner of `tokenId`.
-        address ownerAddr = nft.ownerOf(_tokenId);
+        address ownerAddr = ERC721(_collection).ownerOf(_tokenId);
         require(ownerAddr == msg.sender, "NOT_TOKEN_OWNER");
         addNFT[_collection].tokenId = _tokenId; // this would be updating previous state instead of adding one more record //need to change to array of mappings.
         addNFT[_collection].expectedPrice = _expectedPrice;
         addNFT[_collection].to = _to;
+        //ERC721(_collection).approve(address(this), _tokenId);
+        (bool success, ) = address(_collection).call(
+            abi.encodeWithSignature("approv(address,uint256)", address(this),_tokenId)
+        );
+        return success;
         //emit evt(ownerAddr);
     }
 
