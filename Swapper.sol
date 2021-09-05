@@ -1,63 +1,71 @@
-const Swapper=artifacts.require("Swapper.sol");
-const NFTContract1=artifacts.require("NFTContract1.sol");
-const NFTContract2=artifacts.require("NFTContract2.sol");
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.0;
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-const { expect } = require('chai');
-//const { time } = require("@openzeppelin/test-helpers");
-const truffleAssert = require('truffle-assertions');
+/// @title Swapper.sol
+/// @author Prajwal More
+/// @notice This allows users to swap NFT for other NFT from one collection.
+/// @dev Contains functions for swapping NFTs and other required functions.
 
-contract("Swapper",accounts=>{
-    const [deployerAccount, user1, user2, anotherUser]=accounts; 
-    beforeEach(async function(){
-        NFTContract1Instance=await NFTContract1.new();
-        NFTContract2Instance=await NFTContract2.new();
-        SwapperInstance=await Swapper.new();
-        collectionAddress= await NFTContract1Instance.address;
-    });
+contract Swapper is Ownable {
+    /// @dev Stores the stores the addresses of other token owners to which first owner is agreed to for swaping NFT.
+    mapping(address => mapping(uint256 => address)) public agreementMap;
 
-    it("Testcase 1 : check if account owns NFT",async ()=>{
-        expect((await NFTContract1Instance.balanceOf(user1)).toNumber()).to.equals(1);
-        expect((await NFTContract2Instance.balanceOf(user2)).toNumber()).to.equals(1);
-    });
+    IERC721 public nft;
 
-    it("Testcase 2 : Can call setAddress() ",async()=>{
-       await SwapperInstance.setAddress(collectionAddress);
-       CollectionAddress=await SwapperInstance.nft();
-       expect(CollectionAddress.toString()).to.equals(collectionAddress);
+    /// @dev Sets address of NFT collection. (for now collction would be static once set for any address)
+    /// @param _collection address of NFT collection.
+    function setAddress(address _collection) external {
+        nft = IERC721(_collection);
+    }
 
-    });
+    /// @dev unction to swap two NFTs.
+    /// @param _collection is address of NFT collections.
+    /// @param owner1Token as ID of a
+    /// @param owner2Token as ID of token.
+    /// @param owner1 as address of first.
+    /// @param owner2 as ID of seconds owner.
+    /// @return boolean value true or false.
+    function swap(
+        uint256 owner1Token,
+        uint256 owner2Token,
+        address owner1,
+        address owner2,
+        address _collection
+    ) external returns (bool) {
+        require(
+            msg.sender == owner1 || msg.sender == owner2,
+            "You are not authorized to swap other's tokens"
+        );
+        address owner1TokenAllowedTo = agreementMap[_collection][owner1Token];
+        address owner2TokenAllowedTo = agreementMap[_collection][owner2Token];
 
-    it("Testcase 3 : Add aggreement",async() => {
-        await SwapperInstance.setAddress(collectionAddress);
-        await SwapperInstance.addAgreement(0,collectionAddress,user2,{from: user1});
-        to=await SwapperInstance.agreementMap(collectionAddress,0);
-        
-        expect(to).to.equals(user2);
-    });
+        require(owner1TokenAllowedTo == owner2, "BOTH_NEEDS_TO_AGREE");
+        require(owner2TokenAllowedTo == owner1, "BOTH_NEEDS_TO_AGREE");
 
-    it("Testcase 4 : Reverts if anyone without token owner tries to call addAgreement()",async()=>{
-        await truffleAssert.reverts(SwapperInstance.addAgreement(0,NFTContract1Instance.address,user2,{from: anotherUser}));
-    });
+        nft.safeTransferFrom(owner1, owner2, owner1Token);
+        nft.safeTransferFrom(owner2, owner1, owner2Token);
+        return true;
+    }
+    /// @dev emits when addAgreement is called.
+    /// @param collection as a NFT collection,
+    /// @param TokenId as a ID of NFT,
+    /// @param to as a address.
+    event evt(address collection, uint256 TokenId, address to);
 
-    it("Testcase 5: testing in full flow",async()=>{
-        collectionAddress= await NFTContract1Instance.address;
-        await SwapperInstance.setAddress(collectionAddress);
-        //User adding agreement through UI.
-        await NFTContract1Instance.approve(SwapperInstance.address,0,{from:user1});
-        await NFTContract1Instance.approve(SwapperInstance.address,1,{from:user2});
-
-        await SwapperInstance.addAgreement(0,collectionAddress,user2,{from:user1});
-        await SwapperInstance.addAgreement(1,collectionAddress,user1,{from:user2});
-
-        await SwapperInstance.swap(0,1,user1,user2,collectionAddress,{from:user2});
-
-        var1 =await NFTContract1Instance.ownerOf(0);
-        var2 =await NFTContract1Instance.ownerOf(1);
-        // see if tokens are swapped.
-        console.log("owner Of token 0", String(var1));
-        console.log("owner Of token 1", String(var2));
-
-        expect(String(var1)).to.eq(user2);
-        expect(String(var2)).to.eq(user1);
-    });
-});
+    /// @dev Explain to a developer any extra details
+    /// @param _tokenId as id of token
+    /// @param _collection is address of NFT collections.
+    /// @param _to is address of other token owners to which first owner is agreed to for swaping NFT.
+    function addAgreement(
+        uint256 _tokenId,
+        address _collection,
+        address _to
+    ) public payable {
+        address ownerAddr = IERC721(_collection).ownerOf(_tokenId);
+        require(ownerAddr == msg.sender, "NOT_TOKEN_OWNER");
+        agreementMap[_collection][_tokenId] = _to;
+        emit evt(_collection, _tokenId, _to);
+    }
+}
