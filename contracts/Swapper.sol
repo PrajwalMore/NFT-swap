@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @dev Contains functions for swapping NFTs and other required functions.
 
 contract Swapper is Ownable {
-    /// @dev Stores the stores the addresses of other token owners to which first owner is agreed to for swaping NFT.
+    /// @dev Stores the addresses of other token owners to which first owner is agreed to for swaping NFT.
     mapping(address => mapping(uint256 => address)) public agreementMap;
 
     IERC721 public nft;
@@ -20,7 +20,7 @@ contract Swapper is Ownable {
         nft = IERC721(_collection);
     }
 
-    /// @dev unction to swap two NFTs.
+    /// @dev function to swap two NFTs.
     /// @param _collection is address of NFT collections.
     /// @param owner1Token as ID of a
     /// @param owner2Token as ID of token.
